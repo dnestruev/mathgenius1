@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MathGenius</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.8.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--ink:#0a0a0f;--ink2:#13131a;--ink3:#1d1d28;--ink4:#252535;
+--fog:#e8e8f2;--fog2:#d0d0e8;--fog3:#b0b0d0;
+--wire:#1e1e2e;--wire2:#2a2a3e;
+--lime:#c8ff00;--lime2:#d4ff33;--lime-dim:rgba(200,255,0,.12);--lime-glow:rgba(200,255,0,.2);
+--cyan:#00ffe0;--cyan-dim:rgba(0,255,224,.08);
+--red:#ff3b5c;--red-dim:rgba(255,59,92,.08);
+--r:10px;--rs:6px;--rpill:30px;
+--sb:52px;
+--font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--ink);color:var(--fog);font-family:var(--font);font-size:15px;display:flex;cursor:default}
+
+::selection{background:var(--lime-dim);color:var(--lime)}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--wire2)}
+
+#grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(var(--wire) 1px,transparent 1px),linear-gradient(90deg,var(--wire) 1px,transparent 1px);
+  background-size:40px 40px;opacity:.35;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%);
+}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 100% 100% at 50% 0%,transparent 40%,var(--ink) 100%);
+}
+#app{display:flex;height:100vh;overflow:hidden;position:relative;z-index:1;width:100%}
+
+/* SIDEBAR */
+#sb{width:var(--sb);display:flex;flex-direction:column;align-items:center;padding:14px 0 16px;gap:2px;
+  border-right:1px solid var(--wire2);flex-shrink:0;background:rgba(10,10,15,.6);backdrop-filter:blur(12px)}
+.slogo{width:34px;height:34px;border-radius:var(--rs);background:var(--lime);display:flex;align-items:center;
+  justify-content:center;color:var(--ink);font-weight:800;font-size:14px;margin-bottom:10px;cursor:pointer;
+  flex-shrink:0;user-select:none;transition:all .2s;box-shadow:0 0 20px var(--lime-glow),0 0 0 0 var(--lime-dim)}
+.slogo:hover{box-shadow:0 0 30px var(--lime-glow),0 0 0 6px var(--lime-dim);transform:scale(1.05)}
+.sl{width:36px;height:36px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--fog3);font-size:17px;border:none;background:transparent;transition:all .15s;font-family:inherit}
+.sl:hover,.sl.on{background:var(--wire2);color:var(--fog)}
+.sbottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:6px}
+.savatar{width:32px;height:32px;border-radius:50%;background:var(--ink3);display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;color:var(--lime);cursor:pointer;
+  border:1px solid var(--wire2);transition:border-color .15s;font-family:var(--mono)}
+.savatar:hover{border-color:var(--lime)}
+
+/* MAIN */
+#wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;min-width:0}
+#chatzone{flex:1;overflow-y:auto;display:flex;flex-direction:column;scroll-behavior:smooth}
+
+/* WELCOME */
+#welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px 16px;text-align:center;position:relative}
+.w-scan{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);
+  animation:scan 3s ease-in-out infinite;opacity:.6}
+@keyframes scan{0%{top:20%;opacity:0}20%{opacity:.6}80%{opacity:.6}100%{top:80%;opacity:0}}
+.w-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:var(--rpill);
+  border:1px solid var(--wire2);background:var(--ink2);color:var(--fog3);font-size:11px;font-family:var(--mono);
+  margin-bottom:18px;letter-spacing:.08em}
+.w-badge span{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 6px var(--lime);
+  animation:blip 2s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:.4}50%{opacity:1}}
+#welcome h1{font-size:clamp(26px,5vw,42px);font-weight:800;letter-spacing:-.5px;line-height:1.1;margin-bottom:10px}
+#welcome h1 em{font-style:normal;color:var(--lime);text-shadow:0 0 30px var(--lime-glow)}
+#welcome p{font-size:13.5px;color:var(--fog3);margin-bottom:28px;max-width:340px;line-height:1.7;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:520px}
+.chip{padding:6px 14px;border-radius:var(--rpill);border:1px solid var(--wire2);background:var(--ink2);
+  color:var(--fog3);font-size:12px;cursor:pointer;transition:all .18s;font-family:var(--mono);letter-spacing:.02em}
+.chip:hover{border-color:var(--lime);color:var(--lime);background:var(--lime-dim);box-shadow:0 0 12px var(--lime-dim)}
+
+/* MESSAGES */
+#msglist{display:none;flex-direction:column;padding:24px 0 12px;gap:4px}
+.mu{display:flex;justify-content:flex-end;padding:4px 20px}
+.mub{background:var(--ink3);border-radius:18px 18px 3px 18px;padding:10px 16px;max-width:70%;
+  font-size:14px;line-height:1.6;word-break:break-word;border:1px solid var(--wire2);font-weight:400}
+.mb{display:flex;gap:12px;padding:4px 20px}
+.mbav{width:28px;height:28px;border-radius:var(--rs);background:var(--lime);display:flex;align-items:center;
+  justify-content:center;color:var(--ink);font-size:10px;font-weight:800;flex-shrink:0;margin-top:4px;
+  font-family:var(--mono);box-shadow:0 0 12px var(--lime-dim)}
+.mbc{flex:1;font-size:14px;line-height:1.7;color:var(--fog);padding-top:2px;min-width:0}
+
+.steprow{font-size:13px;color:var(--fog3);padding:4px 0 4px 14px;line-height:1.7;
+  border-left:1px solid var(--wire2);margin:1px 0;font-family:var(--mono);font-weight:300;transition:border-color .4s}
+.steprow:last-of-type{border-color:var(--lime)}
+.steprow b{color:var(--fog);font-weight:500;font-family:var(--font)}
+
+.ansrow{font-size:14px;font-weight:600;margin-top:14px;padding:12px 18px;border-radius:var(--rs);
+  background:var(--lime-dim);border:1px solid rgba(200,255,0,.3);display:flex;align-items:center;gap:10px;
+  color:var(--lime);font-family:var(--mono);letter-spacing:.02em;
+  box-shadow:0 0 20px rgba(200,255,0,.06) inset}
+.ansrow i{flex-shrink:0;font-size:15px}
+.ansalt{margin-top:6px;font-size:11.5px;color:var(--fog3);font-family:var(--mono);padding:6px 10px;
+  border-radius:var(--rs);background:var(--ink2);border:1px solid var(--wire2)}
+
+.errtxt{color:var(--red);font-size:13px;display:flex;align-items:flex-start;gap:8px;font-family:var(--mono)}
+.errtxt i{flex-shrink:0;margin-top:2px}
+.hint{font-size:11.5px;color:var(--fog3);margin-top:8px;line-height:1.7;padding:10px 14px;
+  border-radius:var(--rs);background:var(--ink2);border:1px solid var(--wire2);font-family:var(--mono)}
+.hint code{color:var(--cyan);font-size:11px}
+
+.dottag{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 9px;border-radius:var(--rpill);
+  margin-bottom:8px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono)}
+.te{background:rgba(0,255,150,.08);color:#00ff96;border:1px solid rgba(0,255,150,.2)}
+.tm{background:rgba(255,200,0,.08);color:#ffc800;border:1px solid rgba(255,200,0,.2)}
+.th{background:rgba(255,59,92,.08);color:var(--red);border:1px solid rgba(255,59,92,.2)}
+
+.dots{display:flex;gap:4px;padding:8px 0}
+.dot{width:4px;height:4px;border-radius:50%;background:var(--lime);opacity:.3;animation:bop 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes bop{0%,60%,100%{transform:translateY(0);opacity:.25}30%{transform:translateY(-6px);opacity:1}}
+
+.livecalc{position:relative}
+.livehead{display:flex;align-items:center;gap:8px;color:var(--fog3);font-size:11px;margin:2px 0 10px;font-family:var(--mono);letter-spacing:.04em}
+.liveorb{width:5px;height:5px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);animation:pulse2 1.4s infinite;flex-shrink:0}
+.livebar{height:1px;width:80px;border-radius:1px;background:linear-gradient(90deg,transparent,var(--lime),transparent);
+  background-size:220% 100%;animation:sweep 1s linear infinite;opacity:.5}
+.liveout{display:flex;flex-direction:column;gap:2px}
+.reveal{animation:stepin .3s cubic-bezier(.16,1,.3,1) both}
+@keyframes pulse2{0%{box-shadow:0 0 0 0 var(--lime-glow)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes sweep{0%{background-position:120% 0}100%{background-position:-120% 0}}
+@keyframes stepin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.liveorb,.livebar,.w-scan,.w-badge span{animation:none}.reveal{opacity:1;transform:none}}
+
+/* INPUT */
+#inputzone{padding:10px 18px 20px;border-top:1px solid var(--wire2);background:rgba(10,10,15,.5);backdrop-filter:blur(8px)}
+#diffrow{display:flex;justify-content:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.db{padding:4px 14px;border-radius:var(--rpill);border:1px solid var(--wire2);background:transparent;
+  color:var(--fog3);font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .15s;letter-spacing:.04em}
+.db:hover{background:var(--ink3);color:var(--fog2)}
+.de.act{background:rgba(0,255,150,.08);color:#00ff96;border-color:rgba(0,255,150,.3)}
+.dm.act{background:rgba(255,200,0,.08);color:#ffc800;border-color:rgba(255,200,0,.3)}
+.dh.act{background:rgba(255,59,92,.08);color:var(--red);border-color:rgba(255,59,92,.3)}
+#irow{display:flex;align-items:center;gap:8px;border:1px solid var(--wire2);border-radius:var(--rpill);
+  padding:8px 8px 8px 20px;transition:border-color .2s,box-shadow .2s;background:var(--ink2)}
+#irow:focus-within{border-color:var(--lime);box-shadow:0 0 0 3px var(--lime-dim),0 0 20px var(--lime-dim)}
+#qi{flex:1;border:none;background:transparent;font-size:14px;color:var(--fog);outline:none;
+  font-family:var(--mono);min-width:0;font-weight:300;letter-spacing:.01em}
+#qi::placeholder{color:var(--fog3);font-weight:300}
+#sndbtn{width:36px;height:36px;border-radius:50%;border:none;background:var(--lime);color:var(--ink);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;
+  transition:all .2s;box-shadow:0 0 16px var(--lime-dim);font-weight:700}
+#sndbtn:hover{box-shadow:0 0 28px var(--lime-glow);transform:scale(1.08)}
+#sndbtn:disabled{opacity:.15;cursor:default;box-shadow:none;transform:none}
+
+/* HISTORY PANE */
+#histpane{position:absolute;inset:0;background:rgba(10,10,15,.96);backdrop-filter:blur(16px);z-index:20;display:none;flex-direction:column}
+#histpane.vis{display:flex}
+.panehdr{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--wire2);gap:10px}
+.panehdr h2{font-size:14px;font-weight:700;flex:1;letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
+.xbtn{width:32px;height:32px;border-radius:var(--rs);border:none;background:transparent;color:var(--fog3);
+  cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .12s}
+.xbtn:hover{background:var(--ink3)}
+#hlist{flex:1;overflow-y:auto;padding:8px 12px}
+.hitem{padding:10px 12px;border-radius:var(--rs);cursor:pointer;display:flex;flex-direction:column;gap:3px;
+  transition:background .12s;border:1px solid transparent}
+.hitem:hover{background:var(--ink2);border-color:var(--wire2)}
+.hq{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+.hm{font-size:10px;color:var(--fog3);display:flex;gap:8px;align-items:center;font-family:var(--mono)}
+.nohi{text-align:center;padding:52px 16px;color:var(--fog3);font-size:12px;font-family:var(--mono)}
+
+/* NAME MODAL */
+#namepane{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;display:none;align-items:center;
+  justify-content:center;backdrop-filter:blur(10px)}
+#namepane.vis{display:flex}
+.namecard{background:var(--ink2);border-radius:var(--r);padding:32px 28px;width:min(340px,90vw);
+  box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 0 1px var(--wire2),0 0 60px rgba(200,255,0,.04)}
+.namecard h2{font-size:20px;font-weight:800;margin-bottom:6px;letter-spacing:-.3px}
+.namecard p{font-size:12.5px;color:var(--fog3);margin-bottom:22px;line-height:1.6;font-family:var(--mono)}
+.nameinp{width:100%;padding:11px 16px;border:1px solid var(--wire2);border-radius:var(--rs);
+  background:var(--ink3);color:var(--fog);font-size:14px;font-family:var(--mono);outline:none;
+  transition:border-color .15s,box-shadow .15s;font-weight:300}
+.nameinp:focus{border-color:var(--lime);box-shadow:0 0 0 3px var(--lime-dim)}
+.namebtn{margin-top:14px;width:100%;padding:12px;border-radius:var(--rs);border:none;background:var(--lime);
+  color:var(--ink);font-size:14px;font-family:var(--font);cursor:pointer;transition:all .15s;font-weight:700;letter-spacing:.02em}
+.namebtn:hover{box-shadow:0 0 24px var(--lime-glow);transform:translateY(-1px)}
+
+@media(max-width:480px){
+  #sb{width:44px}.slogo{width:30px;height:30px;font-size:12px}
+  .sl{width:32px;height:32px}.mb,.mu{padding:3px 12px}
+  #inputzone{padding:8px 12px 16px}
+}
+</style>
+</head>
+<body>
+<div id="grid-bg"></div>
+<div id="vignette"></div>
+<div id="app">
+  <div id="sb">
+    <div class="slogo" onclick="newChat()" title="MathGenius">MG</div>
+    <button class="sl on" id="sl-home" onclick="newChat()" title="Новый чат"><i class="ti ti-pencil"></i></button>
+    <button class="sl" id="sl-hist" onclick="openHist()" title="История"><i class="ti ti-history"></i></button>
+    <div class="sbottom">
+      <button class="sl" onclick="openName()"><i class="ti ti-user"></i></button>
+      <div class="savatar" id="av" onclick="openName()">?</div>
+    </div>
+  </div>
+  <div id="wrap">
+    <div id="chatzone">
+      <div id="welcome">
+        <div class="w-scan"></div>
+        <div class="w-badge"><span></span>MATHGENIUS v6.0</div>
+        <h1 id="wtitle">Привет,<br><em>решим всё</em></h1>
+        <p>Введи любой пример, уравнение или задачу — разберу пошагово с mathjs</p>
+        <div class="chips">
+          <button class="chip" onclick="fill('7 * 8 + 3^2')">7×8+3²</button>
+          <button class="chip" onclick="fill('2x + 5 = 13')">2x+5=13</button>
+          <button class="chip" onclick="fill('sqrt(144)')">√144</button>
+          <button class="chip" onclick="fill('log(32, 2)')">log₂(32)</button>
+          <button class="chip" onclick="fill('sin(30 deg)')">sin 30°</button>
+          <button class="chip" onclick="fill('треугольник 3 4 5')">△ 3,4,5</button>
+          <button class="chip" onclick="fill('x^2 - 5x + 6 = 0')">x²−5x+6=0</button>
+          <button class="chip" onclick="fill('20% от 350')">20% от 350</button>
+          <button class="chip" onclick="fill('(2+3)*4 - 10/2')">скобки</button>
+          <button class="chip" onclick="fill('derivative(x^3 + 2x, x)')">d/dx x³+2x</button>
+          <button class="chip" onclick="fill('simplify(2x^2 + 3x^2)')">упростить</button>
+          <button class="chip" onclick="fill('cos(60 deg)')">cos 60°</button>
+        </div>
+      </div>
+      <div id="msglist"></div>
+    </div>
+    <div id="inputzone">
+      <div id="diffrow">
+        <button class="db de act" id="de" onclick="setD('easy')">1–4 кл</button>
+        <button class="db dm" id="dm" onclick="setD('medium')">5–6 кл</button>
+        <button class="db dh" id="dh" onclick="setD('hard')">7–11 кл</button>
+      </div>
+      <div id="irow">
+        <input id="qi" placeholder="Пример, уравнение, задача..." autocomplete="off" onkeydown="kd(event)" oninput="upd()"/>
+        <button id="sndbtn" onclick="go()" disabled><i class="ti ti-arrow-up"></i></button>
+      </div>
+    </div>
+    <div id="histpane">
+      <div class="panehdr"><h2>История</h2><button class="xbtn" onclick="closeHist()"><i class="ti ti-x"></i></button></div>
+      <div id="hlist"></div>
+    </div>
+  </div>
+</div>
+<div id="namepane">
+  <div class="namecard">
+    <h2>Как зовут?</h2>
+    <p>// Буду обращаться по имени</p>
+    <input class="nameinp" id="nameinp" type="text" placeholder="твоё_имя" maxlength="30" onkeydown="if(event.key==='Enter')saveName()"/>
+    <button class="namebtn" onclick="saveName()">Сохранить</button>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// КОНФИГУРАЦИЯ API OPENROUTER
+// ==========================================
+const OPENROUTER_KEY = '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';
+
+var diff='easy',hist=[],busy=false,liveTimers=[];
+var DL={easy:'Начальная',medium:'Средняя',hard:'Старшая'};
+var TC={easy:'te',medium:'tm',hard:'th'};
+var userName='';
+
+function initName(){
+  var n=localStorage.getItem('mg_name')||'';
+  userName=n;updateNameUI();
+  if(!n)setTimeout(openName,800);
+}
+function updateNameUI(){
+  var av=document.getElementById('av');
+  var wt=document.getElementById('wtitle');
+  if(userName){
+    av.textContent=userName.charAt(0).toUpperCase();
+    wt.innerHTML='Привет, '+esc(userName)+'<br><em>решим всё</em>';
+  } else {
+    av.textContent='?';
+    wt.innerHTML='Привет,<br><em>решим всё</em>';
+  }
+}
+function openName(){
+  document.getElementById('nameinp').value=userName;
+  document.getElementById('namepane').classList.add('vis');
+  setTimeout(function(){document.getElementById('nameinp').focus();},80);
+}
+function saveName(){
+  var v=document.getElementById('nameinp').value.trim();
+  userName=v;
+  if(v)localStorage.setItem('mg_name',v);
+  else localStorage.removeItem('mg_name');
+  updateNameUI();
+  document.getElementById('namepane').classList.remove('vis');
+}
+document.getElementById('namepane').addEventListener('click',function(e){if(e.target===this)this.classList.remove('vis');});
+
+function setD(d){
+  diff=d;
+  var map={easy:'de',medium:'dm',hard:'dh'};
+  ['easy','medium','hard'].forEach(function(x){
+    var b=document.getElementById(map[x]);
+    b.className='db '+(x==='easy'?'de':x==='medium'?'dm':'dh')+(x===d?' act':'');
+  });
+}
+function fill(t){document.getElementById('qi').value=t;upd();document.getElementById('qi').focus();}
+function kd(e){if(e.key==='Enter'){e.preventDefault();go();}}
+function upd(){document.getElementById('sndbtn').disabled=!document.getElementById('qi').value.trim()||busy;}
+function newChat(){
+  clearLiveTimers();busy=false;
+  document.getElementById('welcome').style.display='';
+  document.getElementById('msglist').style.display='none';
+  document.getElementById('msglist').innerHTML='';
+  document.getElementById('qi').value='';
+  closeHist();upd();
+}
+function openHist(){
+  var hl=document.getElementById('hlist');
+  if(!hist.length){
+    hl.innerHTML='<div class="nohi"><i class="ti ti-history" style="font-size:28px;display:block;margin:0 auto 10px;opacity:.15"></i>// история пуста</div>';
+  } else {
+    hl.innerHTML=hist.slice().reverse().map(function(h,i){
+      var idx=hist.length-1-i;
+      return '<div class="hitem" onclick="loadH('+idx+')"><div class="hq">'+esc(h.q)+'</div><div class="hm"><span class="dottag '+TC[h.diff]+'">'+DL[h.diff]+'</span><span>'+h.t+'</span></div></div>';
+    }).join('');
+  }
+  document.getElementById('histpane').classList.add('vis');
+}
+function closeHist(){document.getElementById('histpane').classList.remove('vis');}
+function loadH(i){fill(hist[i].q);setD(hist[i].diff);closeHist();}
+function showMsgs(){
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('msglist').style.display='flex';
+}
+function addUser(t){
+  showMsgs();
+  var d=document.createElement('div');d.className='mu';
+  d.innerHTML='<div class="mub">'+esc(t)+'</div>';
+  document.getElementById('msglist').appendChild(d);sc();
+}
+function addThink(){
+  showMsgs();
+  var d=document.createElement('div');d.className='mb';d.id='thinking';
+  d.innerHTML='<div class="mbav">MG</div><div class="mbc"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+  document.getElementById('msglist').appendChild(d);sc();
+}
+function removeThink(){var t=document.getElementById('thinking');if(t)t.remove();}
+function addBotLive(html,d,done){
+  var wrap=document.createElement('div');wrap.className='mb';
+  wrap.innerHTML='<div class="mbav">MG</div><div class="mbc livecalc"><span class="dottag '+TC[d]+'">'+DL[d]+'</span><div class="livehead"><span class="liveorb"></span><span class="livetxt">parsing...</span><span class="livebar"></span></div><div class="liveout"></div></div>';
+  var out=wrap.querySelector('.liveout'),status=wrap.querySelector('.livetxt'),bar=wrap.querySelector('.livebar'),orb=wrap.querySelector('.liveorb');
+  var tmp=document.createElement('div');tmp.innerHTML=html;
+  var chunks=Array.prototype.slice.call(tmp.childNodes).filter(function(n){return n.nodeType!==3||n.textContent.trim();});
+  document.getElementById('msglist').appendChild(wrap);sc();
+  if(!chunks.length){chunks=[document.createTextNode('done')];}
+  later(function(){status.textContent='building steps...';},200);
+  chunks.forEach(function(node,i){
+    later(function(){
+      var item=node.cloneNode(true);
+      if(item.nodeType===1)item.classList.add('reveal');
+      else{var span=document.createElement('span');span.className='reveal';span.textContent=item.textContent;item=span;}
+      out.appendChild(item);sc();
+      status.textContent=i===chunks.length-1?'finalizing...':'step '+(i+1)+'/'+chunks.length;
+    },360+i*200);
+  });
+  later(function(){
+    status.textContent='done ✓';
+    if(bar)bar.style.display='none';
+    if(orb){orb.style.animation='none';orb.style.background='var(--lime)';orb.style.boxShadow='0 0 8px var(--lime)';}
+    if(done)done();
+  },420+chunks.length*200);
+}
+function clearLiveTimers(){liveTimers.forEach(function(id){clearTimeout(id);});liveTimers=[];}
+function later(fn,ms){
+  var id=setTimeout(function(){liveTimers=liveTimers.filter(function(x){return x!==id;});fn();},ms);
+  liveTimers.push(id);
+}
+function sc(){var c=document.getElementById('chatzone');c.scrollTop=c.scrollHeight;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ==========================================
+// ИНТЕГРАЦИЯ ИИ (С ОЧИСТКОЙ ЗАПРОСОВ И ОТВЕТОВ)
+// ==========================================
+
+function sanitizeForAI(text) {
+  return text.replace(/(\d)\s*[.,]\s*(\d)/g, '$1.$2');
+}
+
+async function fetchAI(query, diff) {
+  const safeQuery = sanitizeForAI(query);
+
+  const sysPrompt = `Ты — математический сопроцессор MathGenius. Твоя задача: решать любые математические и логические задачи пошагово.
+
+ПРАВИЛА ИСКЛЮЧЕНИЯ ОШИБОК:
+1. Запрещено изменять числа, знаки (+/-) или скобки в исходном уравнении пользователя. Решай строго то, что прислали.
+2. Раскрывай скобки строго изнутри наружу (от самых глубоких к внешним).
+3. За один шаг (один тег div) разрешено выполнять строго ОДНО действие (раскрыть одну скобку ИЛИ привести подобные). 
+4. При раскрытии скобок, перед которыми стоит МИНУС, меняй знаки ВСЕХ слагаемых внутри на противоположные.
+5. Конечный дробный результат записывай в виде сокращенной обыкновенной дроби (например: 5/3).
+
+АБСОЛЮТНО ЗАПРЕЩЕНО:
+1. Писать любой текст вне указанных HTML-тегов div.
+2. Использовать Markdown-форматирование блоков (никаких \`\`\`html или \`\`\`, никаких звездочек * для жирности).
+3. Использовать LaTeX-форматирование. Формулы пиши обычным текстом (например: x^2 + y^2 = z^2).
+4. Выводить внутренние рассуждения в тегах <thought> или без них. Сразу генерируй структуру ответа для пользователя.
+
+Твой ответ должен состоять СТРОГО из последовательности следующих HTML-блоков:
+Для каждого шага решения используй:
+<div class="steprow"><b>[Номер_шага]</b> Текст шага с вычислениями</div>
+
+Для финального ответа в самом конце используй СТРОГО такую конструкцию (текст пиши ПОСЛЕ тега иконки):
+<div class="ansrow"><i class="ti ti-check"></i> Итоговый ответ: [Значение]</div>
+
+Учитывай уровень сложности: ${diff}. Пиши четко, математически точно и без воды.`;
+
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + OPENROUTER_KEY,
+      "Content-Type": "application/json",
+      "HTTP-Referer": window.location.origin,
+      "X-Title": "MathGenius"
+    },
+    body: JSON.stringify({
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "temperature": 0.1, 
+      "messages": [
+        { "role": "system", "content": sysPrompt },
+        { "role": "user", "content": safeQuery }
+      ]
+    })
+  });
+
+  if (!response.ok) throw new Error('API Error');
+  
+  const data = await response.json();
+  let rawContent = data.choices[0].message.content.trim();
+  
+  // Вырезаем процесс "размышлений" модели
+  rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  
+  // Жесткая очистка: убираем случайные markdown-блоки
+  rawContent = rawContent.replace(/^```(html)?\s*/i, '').replace(/```$/i, '').trim();
+  
+  return rawContent;
+}
+
+// ==========================================
+// ГЛАВНЫЙ КОНТРОЛЛЕР ЗАПРОСОВ
+// ==========================================
+async function go() {
+  var inp = document.getElementById('qi');
+  var q = inp.value.trim();
+  if(!q || busy) return;
+  busy = true; inp.value = ''; upd();
+  var now = new Date();
+  var t = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  hist.push({q: q, diff: diff, t: t});
+  addUser(q); addThink();
+  var d = diff;
+
+  let localResult = solve(q);
+  
+  if (localResult && localResult.indexOf('errtxt') !== -1) {
+    if (!OPENROUTER_KEY || OPENROUTER_KEY === 'ВСТАВЬ_СЮДА_СВОЙ_КЛЮЧ_OPENROUTER') {
+      removeThink();
+      addBotLive('<div class="errtxt"><i class="ti ti-alert-triangle"></i><span>Для решения сложных задач нужен API-ключ OpenRouter. Вставьте его в код.</span></div>', d, function(){busy=false;upd();});
+      return;
+    }
+
+    try {
+      let aiResult = await fetchAI(q, d);
+      removeThink();
+      addBotLive(aiResult, d, function(){ busy = false; upd(); });
+    } catch (e) {
+      removeThink();
+      addBotLive('<div class="errtxt"><i class="ti ti-alert-triangle"></i><span>Ошибка соединения с ИИ: ' + esc(e.message) + '</span></div>', d, function(){busy=false;upd();});
+    }
+  } else {
+    later(function(){
+      removeThink();
+      addBotLive(localResult, d, function(){ busy = false; upd(); });
+    }, 300);
+  }
+}
+
+// ==========================================
+// ЛОКАЛЬНЫЙ MATHJS ДВИЖОК
+// ==========================================
+function fmt(n){
+  if(n===null||n===undefined)return '?';
+  if(typeof n==='string')return n;
+  if(typeof n==='number'){
+    if(!isFinite(n))return '∞';
+    if(Math.abs(n)<1e-12)n=0;
+    var rounded=Math.round(n);
+    if(Math.abs(n-rounded)<1e-9)return String(rounded);
+    return parseFloat(n.toFixed(10)).toString();
+  }
+  try{return math.format(n,{notation:'auto',precision:10});}catch(e){return String(n);}
+}
+
+function steps(arr,ans){
+  var s=arr.map(function(x,i){
+    return '<div class="steprow"><b>['+(i+1)+']</b> '+x+'</div>';
+  }).join('');
+  return s+'<div class="ansrow"><i class="ti ti-check"></i>'+ans+'</div>';
+}
+function errMsg(m){
+  return '<div class="errtxt"><i class="ti ti-alert-triangle"></i><span>'+esc(m)+'</span></div>'
+    +'<div class="hint">Примеры: <code>2(x+3)=14</code> · <code>x^2-5x+6=0</code> · <code>sqrt(144)</code> · <code>sin(30 deg)</code> · <code>log(32,2)</code> · <code>20% от 350</code> · <code>derivative(x^2,x)</code> · <code>simplify(2x+3x)</code></div>';
+}
+
+function normRu(s){
+  s=String(s).toLowerCase();
+  s=s.replace(/π/g,'pi').replace(/²/g,'^2').replace(/³/g,'^3');
+  s=s.replace(/−|–|—/g,'-').replace(/×|·|∙/g,'*').replace(/÷/g,'/');
+  s=s.replace(/[,،]/g,'.').replace(/°/g,' deg ');
+  s=s.replace(/градусов|градуса|градусы|градус|град\.?/gi,' deg ');
+  s=s.replace(/плюс/g,'+').replace(/минус/g,'-');
+  s=s.replace(/умножить на|умножить/g,'*').replace(/разделить на|делить на|поделить на/g,'/');
+  s=s.replace(/уравнение|реши|решить|вычисли|посчитай|найди значение|сколько будет|чему равно/gi,' ');
+  s=s.replace(/процентов|процента|процент/gi,'%');
+  s=s.replace(/икс/g,'x');
+  s=s.replace(/логарифм\s+(\S+)\s+по\s+основани[юя]\s+(\S+)/gi,'log($1,$2)');
+  s=s.replace(/корень из/gi,'sqrt');
+  s=s.replace(/\blog\s*_\s*(\d+(?:\.\d+)?)\s*\(/g,'log(');
+  s=s.replace(/√\s*\(/g,'sqrt(').replace(/√\s*([a-z]+|\d+(?:\.\d+)?)/g,'sqrt($1)');
+  return s.replace(/\s+/g,' ').trim();
+}
+function detectDeg(raw){return /°|\bdeg\b|градус/i.test(raw);}
+
+function solvePercent(q){
+  var s=normRu(q),m;
+  m=s.match(/([+-]?\d+(?:\.\d+)?)\s*%\s*(?:от|из)\s*([+-]?\d+(?:\.\d+)?)/i);
+  if(!m)m=s.match(/(?:найти|сколько)?\s*([+-]?\d+(?:\.\d+)?)\s*%\s+(?:от|из)?\s*([+-]?\d+(?:\.\d+)?)/i);
+  if(m){var p=+m[1],n=+m[2],r=p*n/100;return steps([''+esc(fmt(p))+'% = '+esc(fmt(p))+'/100 = '+esc(fmt(p/100)),esc(fmt(p/100))+' × '+esc(fmt(n))+' = '+esc(fmt(r))],esc(fmt(r)));}
+  m=s.match(/(?:увеличить|прибавить)\D*?([+-]?\d+(?:\.\d+)?)\s+(?:на\s*)?([+-]?\d+(?:\.\d+)?)\s*%/i);
+  if(!m)m=s.match(/(?:увеличить|прибавить)\s*(?:на)?\s*([+-]?\d+(?:\.\d+)?)\s*%\s*(?:от|для|число|значение)?\s*([+-]?\d+(?:\.\d+)?)/i);
+  if(m){var base=+m[1],pp=+m[2];if(s.indexOf('%')<s.lastIndexOf(String(m[2]))){base=+m[2];pp=+m[1];}var rr=base*(1+pp/100);return steps(['Увеличить '+esc(fmt(base))+' на '+esc(fmt(pp))+'%','умножаем: '+esc(fmt(base))+' × '+esc(fmt(1+pp/100))+' = '+esc(fmt(rr))],esc(fmt(rr)));}
+  m=s.match(/(?:уменьшить|вычесть|скидк)\S*\D*?([+-]?\d+(?:\.\d+)?)\s+(?:на\s*)?([+-]?\d+(?:\.\d+)?)\s*%/i);
+  if(!m)m=s.match(/(?:уменьшить|вычесть|скидк)\S*\s*(?:на)?\s*([+-]?\d+(?:\.\d+)?)\s*%\s*(?:от|для|число|значение)?\s*([+-]?\d+(?:\.\d+)?)/i);
+  if(m){var base2=+m[1],pp2=+m[2];if(s.indexOf('%')<s.lastIndexOf(String(m[2]))){base2=+m[2];pp2=+m[1];}var rr2=base2*(1-pp2/100);return steps(['Уменьшить '+esc(fmt(base2))+' на '+esc(fmt(pp2))+'%','умножаем: '+esc(fmt(base2))+' × '+esc(fmt(1-pp2/100))+' = '+esc(fmt(rr2))],esc(fmt(rr2)));}
+  var pm=s.match(/^([+-]?\d+(?:\.\d+)?)\s*([+-])\s*([+-]?\d+(?:\.\d+)?)\s*%$/);
+  if(pm){var base0=+pm[1],sign=pm[2],p0=+pm[3],r0=base0*(sign==='+'?1+p0/100:1-p0/100);return steps([esc(fmt(p0))+'% от '+esc(fmt(base0))+' = '+esc(fmt(base0*p0/100)),esc(fmt(base0))+' '+sign+' '+esc(fmt(base0*p0/100))+' = '+esc(fmt(r0))],esc(fmt(r0)));}
+  return null;
+}
+function nums(q){return (q.match(/[+-]?\d+(?:\.\d+)?/g)||[]).map(Number);}
+function hasW(words,roots){return words.some(function(w){return roots.some(function(r){return w.indexOf(r)===0;});});}
+function solveGeometry(q){
+  var s=normRu(q),words=s.split(/\s+/).filter(Boolean),a=nums(q);
+  var triangle=hasW(words,['треуголь','сторон']);
+  var circle=hasW(words,['круг','окружност']);
+  var rectangle=hasW(words,['прямоуголь','квадрат']);
+  var square=hasW(words,['квадрат']);
+  var pythagorean=hasW(words,['гипотенуз','пифагор','катет']);
+  var perimeter=hasW(words,['периметр','длин']);
+  if(triangle&&a.length>=3){
+    var x=a[0],y=a[1],z=a[2];
+    if(x<=0||y<=0||z<=0)return errMsg('Стороны должны быть положительными.');
+    if(x+y<=z||x+z<=y||y+z<=x)return errMsg('Нарушено неравенство треугольника.');
+    var hp=(x+y+z)/2,area=Math.sqrt(hp*(hp-x)*(hp-y)*(hp-z));
+    return steps(['a='+esc(fmt(x))+', b='+esc(fmt(y))+', c='+esc(fmt(z)),'p=('+esc(fmt(x))+'+'+esc(fmt(y))+'+'+esc(fmt(z))+')/2 = '+esc(fmt(hp)),'S=√(p(p−a)(p−b)(p−c)) = '+esc(fmt(area))],'S = '+esc(fmt(area)));
+  }
+  if(circle&&a.length>=1){
+    var r=a[0];if(r<=0)return errMsg('Радиус должен быть положительным.');
+    var areaC=Math.PI*r*r,len=2*Math.PI*r;
+    return steps(['r = '+esc(fmt(r)),'S = πr² = '+esc(fmt(areaC)),'C = 2πr = '+esc(fmt(len))],perimeter?'C = '+esc(fmt(len)):'S = '+esc(fmt(areaC)));
+  }
+  if(rectangle&&a.length>=1){
+    var w=a[0],h=square&&a.length===1?w:a[1];if(h===undefined)return null;
+    if(w<=0||h<=0)return errMsg('Стороны должны быть положительными.');
+    var ar=w*h,per=2*(w+h);
+    return steps(['a='+esc(fmt(w))+', b='+esc(fmt(h)),'S=a·b = '+esc(fmt(ar)),'P=2(a+b) = '+esc(fmt(per))],perimeter?'P = '+esc(fmt(per)):'S = '+esc(fmt(ar)));
+  }
+  if(pythagorean&&a.length>=2){
+    var aa=a[0],bb=a[1];if(aa<=0||bb<=0)return errMsg('Катеты должны быть положительными.');
+    var cc=Math.sqrt(aa*aa+bb*bb);
+    return steps(['c²=a²+b²','c=√('+esc(fmt(aa))+'²+'+esc(fmt(bb))+'²) = √'+esc(fmt(aa*aa+bb*bb))+' = '+esc(fmt(cc))],'c = '+esc(fmt(cc)));
+  }
+  return null;
+}
+function mjFmt(node){try{return math.format(node,{notation:'auto',precision:10});}catch(e){return String(node);}}
+
+function solveEquation(raw){
+  var parts=raw.split('=');
+  if(parts.length!==2)return errMsg('Уравнение должно содержать ровно один знак =');
+  var leftStr=parts[0].trim(),rightStr=parts[1].trim();
+  try{
+    var leftExpr=math.parse(normRu(leftStr));
+    var rightExpr=math.parse(normRu(rightStr));
+    var diff2=math.simplify(math.subtract(leftExpr,rightExpr));
+    var sols=math.solve(diff2,'x');
+    var ss=['Левая: '+esc(leftStr),'Правая: '+esc(rightStr),'Переносим: '+esc(mjFmt(diff2))+' = 0'];
+    if(!sols||sols.length===0)return steps(ss,'решений нет');
+    if(sols.length===1){
+      var xv;try{xv=math.evaluate(sols[0].toString(),{});}catch(e){}
+      ss.push('x = '+esc(mjFmt(sols[0])));
+      if(typeof xv==='number'&&Math.abs(xv-Math.round(xv))>1e-9)ss.push('≈ '+esc(fmt(xv)));
+      return steps(ss,'x = '+esc(mjFmt(sols[0])));
+    }
+    sols.forEach(function(s,i){ss.push('x'+(i+1)+' = '+esc(mjFmt(s)));});
+    return steps(ss,sols.map(function(s,i){return 'x'+(i+1)+'='+esc(mjFmt(s));}).join(', '));
+  }catch(e){return errMsg('Не удалось решить: '+e.message);}
+}
+function solveDerivative(raw){
+  var m=raw.match(/derivative\s*\(\s*(.+?)\s*,\s*([a-z])\s*\)/i);
+  if(!m)return null;
+  try{
+    var deriv=math.derivative(math.parse(normRu(m[1].trim())),m[2]);
+    var simp=math.simplify(deriv);
+    return steps(['f(x) = '+esc(m[1].trim()),'Берём производную по '+esc(m[2]),'d/d'+esc(m[2])+'(f) = '+esc(simp.toString())],esc(simp.toString()));
+  }catch(e){return errMsg('Ошибка: '+e.message);}
+}
+function solveSimplify(raw){
+  var m=raw.match(/simplify\s*\(\s*(.+?)\s*\)/i);
+  if(!m)return null;
+  try{
+    var simp=math.simplify(normRu(m[1].trim()));
+    return steps(['Выражение: '+esc(m[1].trim()),'Применяем правила алгебры','= '+esc(simp.toString())],esc(simp.toString()));
+  }catch(e){return errMsg('Ошибка: '+e.message);}
+}
+
+function solve(raw){
+  var q=raw.trim();
+  if(!q)return errMsg('Введите пример, уравнение или задачу.');
+  var pct=solvePercent(q);if(pct)return pct;
+  var geom=solveGeometry(q);if(geom)return geom;
+  if(/derivative\s*\(/i.test(q)){var dr=solveDerivative(q);if(dr)return dr;}
+  if(/simplify\s*\(/i.test(q)){var sm=solveSimplify(q);if(sm)return sm;}
+  if(q.indexOf('=')>=0)return solveEquation(q);
+  try{
+    var normalized=normRu(q);
+    var isDeg=detectDeg(q);
+    if(isDeg){
+      normalized=normalized.replace(/\bdeg\b/g,'').trim();
+      try{
+        var tm=math.create(math.all);tm.config({angles:'deg'});
+        var prs=tm.parse(normalized);
+        var val=prs.evaluate({});
+        return steps(['Выражение: '+esc(normalized),'Углы: градусы',esc(normalized)+' = '+esc(fmt(val))],esc(fmt(val)));
+      }catch(e2){}
+    }
+    var parsed=math.parse(normalized);
+    var val2=parsed.evaluate({});
+    var valStr=fmt(val2);
+    return steps(['Нормализация: '+esc(normalized),'Вычисляем: '+esc(normalized)+' = '+esc(valStr)],esc(valStr));
+  }catch(e){return errMsg('Не удалось вычислить: '+e.message);}
+}
+initName();
+</script>
+</body>
+</html>
